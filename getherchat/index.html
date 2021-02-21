@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Gether | Cohackathon</title>
+    <style>
+      body { 
+        margin: 0; 
+        padding-bottom: 3rem; 
+        font-family: "Comic Sans MS"; 
+      }
+
+      #form { 
+        background: #b3b3cc; 
+        padding: 0.25rem; 
+        position: fixed; 
+        bottom: 0; 
+        left: 0;
+        right: 0; 
+        display: flex; 
+        height: 3rem; 
+        box-sizing: border-box; 
+        backdrop-filter: blur(10px); 
+      }
+
+      #input {
+        border: none; 
+        padding: 0 1rem; 
+        flex-grow: 1; 
+        border-radius: 2rem;
+        margin: 0.25rem;
+      }
+      #input:focus { 
+        outline: none; 
+      }
+      #form > button {
+        background: #333; 
+        border: none; 
+        padding: 0 1rem; 
+        margin: 0.25rem; 
+        border-radius: 3px; 
+        outline: none; 
+        color: #fff; 
+      }
+
+      #spacer {
+        padding-top: 0.5rem;
+      }
+
+      #messages { 
+        list-style-type: none; 
+        margin: 0; 
+        padding: 0; 
+      }
+      #messages > li {
+         padding: 0.5rem 1rem; 
+      }
+      #messages > li:nth-child(even) { 
+        background: #efefef; 
+      }
+      
+      .topnav {
+        background-color: darkgreen; 
+        overflow: hidden;
+        position: fixed;
+        top: 0;
+        width: 100%;
+        padding-bottom: 0;
+      }
+
+      .top {
+        background-color: lightgreen;
+        border: none;
+        border-radius: 3px;
+        padding: 0.5rem 1rem;
+        margin: 0.25 rem;
+        color: white;
+        font-size: 16px;
+      }
+
+      .info {
+        background-color: gray;
+        border: none;
+        text-align: right;
+        color: white;
+        padding: 0.5rem 1rem;
+        margin: 0.25 rem;
+        color: white;
+        font-size: 16px;
+      }
+
+      .move {
+        color: blue;
+        background-color: white;
+      }
+
+      .connections {
+        font-style: italic;
+        color: lawngreen
+      }
+    </style>
+  </head>
+  <body onload='name()'>
+    <div class="topnav">
+      <button class="top" id="scream">Scream</button>
+      <button class="top" id="dance">Dance</button>
+      <button class="top" id="namechange">Change Name</button>
+      <button class="top" id="changeroom">Change Room</button>
+      <button class="info" id="lename"></button>
+      <button class="info" id="location"></button>
+    </div>
+    <form id="form" action="">
+      <input id="input" autocomplete="off" /><button>Send</button>
+    </form>
+    <p id="spacer"></p>
+    <ul id="messages"></ul>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+    var socket = io();
+    var form = document.getElementById('form');
+    var input = document.getElementById('input');
+    var scream = document.getElementById('scream');
+    var dance = document.getElementById('dance');
+    var namechange = document.getElementById('namechange');
+    var messages = document.getElementById('messages');
+    var changeroom = document.getElementById('changeroom');
+    var username = 'anonymous';
+    var place = 'lobby';
+    var postcooldown = 0; 
+
+    function chattimeout() {
+      postcooldown = 0;
+    }
+
+    function selfappend(message) {
+      var item = document.createElement('li');
+      item.textContent = message;
+      messages.appendChild(item);
+      window.scrollTo(0, document.body.scrollHeight);
+    }
+
+    function boldappend(message, theme) {
+      var g = document.createElement('li');
+      g.setAttribute('class', theme)
+      g.textContent = message;
+      messages.appendChild(g);
+      window.scrollTo(0, document.body.scrollHeight);
+    }
+
+    function name() {
+      selfappend(' ');
+      //selfappend() adds a new line. this is a spacer so the top bar doesn't cover the first post. 
+      var name = prompt('What is your name?');
+      if (name == null) {
+        username = 'anonymous';
+      } else {
+        username = name;
+      }
+      socket.emit('name', username);
+      document.getElementById('lename').innerHTML = "Name: " + username;
+      document.getElementById('location').innerHTML = "Location: " + place;
+    }
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (input.value && postcooldown == 0) {
+        if (place == 'lobby') {
+          socket.emit('lobby message', username + ": " + input.value);
+          selfappend(username + ": " + input.value)
+        } 
+        if (place == 'cafeteria') {
+          socket.emit('cafeteria message', username + ": " + input.value);
+          selfappend(username + ": " + input.value)
+        }
+        input.value = '';
+        postcooldown = 1;
+        setTimeout(chattimeout, 2000);        
+      } else if (input.value == "") {
+        alert('type something to send, not nothing!');
+      } else {
+        alert('slow down there. two second cooldown')
+      }
+    });
+
+    namechange.addEventListener('click', function(d) {
+      var name = prompt('What do you want to change your name to?');
+      if (name == null || name == username) {
+        socket.emit('chat message', username + ' tried to change their name but was too incompetent (' + place + ')');
+        boldappend("you tried to change your name, but you were too incompetent", 'move');
+      } else {
+        socket.emit('chat message', username + ' has changed their name to ' + name + ' (' + place + ')');
+        boldappend('you have changed your name from ' + username + ' to ' + name, 'move')
+        username = name;
+        document.getElementById('lename').innerHTML = "Name: " + username;
+      }
+    });
+
+    scream.addEventListener('click', function(f) {
+      f.preventDefault();
+      if (postcooldown == 0) {
+        if (place == 'lobby') {
+          socket.emit('lobby message', username + ' screamed at the top of their lungs!');
+        }
+        if (place == 'cafeteria') {
+          socket.emit('lobby message', username + ' screamed at the top of their lungs!');
+        }
+        selfappend('You screamed at the top of your lungs!');
+        postcooldown = 1;
+        setTimeout(chattimeout, 2000);
+      } else {
+        alert('slow down there. two second cooldown');
+      }
+    }); 
+
+    dance.addEventListener('click', function(g) {
+      g.preventDefault();
+      if (postcooldown == 0) {
+        if (place == 'lobby') {
+          socket.emit('lobby message', username + ' did the worm.');
+        }
+        if (place == 'cafeteria') {
+          socket.emit('cafeteria message', username + ' did the worm.');
+        }
+        selfappend('You did the worm.')
+        postcooldown = 1
+        setTimeout(chattimeout, 2000);
+      } else {
+        alert('slow down there. two second cooldown');
+      }
+    }); 
+
+    changeroom.addEventListener('click', function() {
+      if (place == 'lobby') {
+        place = 'cafeteria';
+        boldappend('You left the lobby for the cafeteria', 'move');
+        socket.emit('lobby notification', username + ' has left for the cafeteria')
+        socket.emit('cafeteria notification', username + ' has arrived from the lobby')
+      } else if (place == 'cafeteria') {
+        place = 'lobby';
+        boldappend('You left the cafeteria for the lobby', 'move');
+        socket.emit('cafeteria notification', username + ' has left for the lobby')
+        socket.emit('lobby notification', username + ' has arrived from the cafeteria')
+      }
+      document.getElementById('location').innerHTML = "Location: " + place;
+      setTimeout('')
+    });
+
+    //chat message socket is obselete, did not have time to remove
+    socket.on('chat message', function(msg) {
+      boldappend(msg);
+    });
+
+    socket.on('cafeteria message', function(msg) {
+      if (place == 'cafeteria') {
+        selfappend(msg);
+      }
+    });
+
+    socket.on('cafeteria notification', function(msg) {
+      if (place == 'cafeteria') {
+        boldappend(msg, 'move');
+      }
+    });
+
+    socket.on('lobby message', function(msg) {
+      if (place == 'lobby') {
+        selfappend(msg);
+      }
+    });
+
+    socket.on('lobby notification', function(msg) {
+      if (place == 'lobby') {
+        boldappend(msg, 'move');
+      }
+    });
+
+    socket.on('name', function(name) {
+      boldappend(name + " has entered the chat", 'connections');
+    });
+
+    socket.on('leave message', function(leave) {
+      boldappend(leave, 'connections');
+    });
+
+    socket.on('disconnect', function() {
+      selfappend("uh oh! server has been updated or has crashed; reload. if it doesn't work contact @Anubis3 on repl.it")
+    });
+
+    </script>
+  </body>
+</html>
